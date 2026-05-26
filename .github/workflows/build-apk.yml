@@ -1,4 +1,4 @@
-name: Auto Create and Build Tauri APK
+name: Auto Create and Build Tauri APK (Super Fast & Tiny)
 on:
   push:
     branches:
@@ -30,33 +30,46 @@ jobs:
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: armv7-linux-androideabi,aarch64-linux-android,i686-linux-android,x86_64-linux-android
+          targets: aarch64-linux-android # DIOPTIMALKAN: Hanya compile untuk HP modern (bikin build 4x lebih cepat & APK lebih kecil)
 
-      # Langkah Inisialisasi + Memperbaiki Script package.json yang dicari Gradle
+      # TRIK CEPAT 1: Cache framework Rust agar build kedua dan seterusnya tinggal melanjutkan
+      - name: Cache Rust Dependencies
+        uses: swatinem/rust-cache@v2
+
+      # TRIK CEPAT 2: Cache folder NPM agar tidak download ulang dependensi JS
+      - name: Cache Node Modules
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      # Langkah Inisialisasi + Trik Ukuran Semut
       - name: Initialize Tauri Project Silently
         run: |
           npm init -y
-          
-          # SOLUSI: Suntik perintah "tauri" ke dalam file package.json agar Gradle tidak error
           sed -i 's/"test": "echo \\"Error: no test specified\\" \&\& exit 1"/"tauri": "tauri"/g' package.json
-          
           npm install @tauri-apps/cli@latest @tauri-apps/api@latest
           npx tauri init --app-name "Aplikasi Arsip" --window-title "Arsip Internal" --frontend-dist "../src" --dev-url "http://localhost:1420" --before-dev-command "" --before-build-command ""
           
           # Mengubah bundle identifier agar unik
           sed -i 's/"com.tauri.dev"/"com.internal.arsipku"/g' src-tauri/tauri.conf.json
+          
+          # TRIK UKURAN SEMUT: Memaksa compiler Rust melakukan optimasi kompresi tingkat tinggi (Strip & LTO)
+          echo -e "\n[profile.release]\nlto = true\ncodegen-units = 1\nstrip = true\npanic = 'abort'" >> src-tauri/Cargo.toml
 
-      # Menginisialisasi komponen Android native di server GitHub
+      # Menginisialisasi komponen Android native
       - name: Initialize Android Platform
         run: npx tauri android init
 
-      # Proses kompilasi kode HTML/CSS/JS menjadi file APK Unsigned
+      # Proses kompilasi menjadi APK
       - name: Build APK
         run: npx tauri android build
 
-      # Mengumpulkan file APK hasil build agar bisa kamu download langsung di HP
+      # Mengumpulkan file APK hasil build
       - name: Upload APK Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/artifact@v4
         with:
           name: tauri-android-apk
           path: src-tauri/gen/android/app/build/outputs/apk/release/**/*.apk
