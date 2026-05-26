@@ -1,9 +1,9 @@
-name: Build Android APK
+name: Auto Create and Build Tauri APK
 on:
   push:
     branches:
-      - main # Jalankan otomatis setiap kamu push ke branch 'main'
-  workflow_dispatch: # Memungkinkan kamu menjalankan build manual dari web GitHub
+      - main # Akan berjalan otomatis setiap kamu commit/save di branch main
+  workflow_dispatch: # Memungkinkan kamu klik tombol "Run workflow" manual dari HP
 
 jobs:
   build-android:
@@ -13,7 +13,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Java (Untuk Android SDK)
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
@@ -32,25 +32,24 @@ jobs:
         with:
           targets: armv7-linux-androideabi,aarch64-linux-android,i686-linux-android,x86_64-linux-android
 
-      - name: Install pnpm (Atau sesuaikan jika pakai npm/yarn)
-        uses: pnpm/action-setup@v3
-        with:
-          version: latest
+      # Langkah otomatis untuk membuat package.json dan konfigurasi Tauri secara silent
+      - name: Initialize Tauri Project Silently
+        run: |
+          npm init -y
+          npm install @tauri-apps/cli@latest @tauri-apps/api@latest
+          npx tauri init --app-name "Aplikasi Arsip" --window-title "Arsip Internal" --dist-dir "../src" --dev-url "http://localhost:1420" --before-dev-command "" --before-build-command ""
 
-      - name: Install frontend dependencies
-        run: pnpm install
+      # Menginisialisasi komponen Android native di server GitHub
+      - name: Initialize Android Platform
+        run: npx tauri android init
 
-      # Menjalankan build tauri khusus untuk Android
-      - name: Build APK via Tauri Action
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          args: --target android
+      # Proses kompilasi kode HTML/CSS/JS menjadi file APK
+      - name: Build APK
+        run: npx tauri android build
 
-      # Mengamankan file APK yang berhasil di-build agar bisa di-download
+      # Mengumpulkan file APK hasil build agar bisa kamu download langsung di HP
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: tauri-android-apk
-          path: src-tauri/gen/android/app/build/outputs/apk/release/*.apk
+          path: src-tauri/gen/android/app/build/outputs/apk/release/**/*.apk
