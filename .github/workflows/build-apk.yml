@@ -30,9 +30,9 @@ jobs:
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-linux-android # Fokus ke arsitektur HP modern agar build 4x lebih cepat
+          targets: aarch64-linux-android
 
-      # Fitur Cache agar build kedua dan seterusnya berjalan kilat
+      # Fitur Cache
       - name: Cache Rust Dependencies
         uses: swatinem/rust-cache@v2
 
@@ -44,7 +44,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-node-
 
-      # Inisialisasi otomatis dan injeksi script Tauri ke package.json
+      # Inisialisasi otomatis
       - name: Initialize Tauri Project Silently
         run: |
           npm init -y
@@ -52,23 +52,31 @@ jobs:
           npm install @tauri-apps/cli@latest @tauri-apps/api@latest
           npx tauri init --app-name "Aplikasi Arsip" --window-title "Arsip Internal" --frontend-dist "../src" --dev-url "http://localhost:1420" --before-dev-command "" --before-build-command ""
           
-          # Mengubah bundle identifier agar unik demi Android
+          # Mengubah bundle identifier agar unik
           sed -i 's/"com.tauri.dev"/"com.internal.arsipku"/g' src-tauri/tauri.conf.json
           
-          # Optimasi Ukuran APK Semut (LTO & Strip)
+          # Optimasi Ukuran APK Semut
           echo -e "\n[profile.release]\nlto = true\ncodegen-units = 1\nstrip = true\npanic = 'abort'" >> src-tauri/Cargo.toml
 
       # Menginisialisasi komponen Android native
       - name: Initialize Android Platform
         run: npx tauri android init
 
-      # Proses kompilasi menjadi APK Unsigned
+      # Proses kompilasi menjadi APK
       - name: Build APK
         run: npx tauri android build
 
-      # Perbaikan Utama: Mengunggah file APK dengan package upload-artifact yang benar
+      # LANGKAH DETEKTIF: Intip semua file .apk yang berhasil terbuat di dalam server
+      - name: Locate APK File
+        run: |
+          echo "=== Menampilkan lokasi file APK yang terbuat ==="
+          find . -name "*.apk"
+          echo "==============================================="
+
+      # Mengunggah file APK dengan jalur pencarian global (Mulai dari folder root src-tauri)
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: tauri-android-apk
-          path: src-tauri/gen/android/app/build/outputs/apk/release/**/*.apk
+          path: src-tauri/**/*.apk # Diperluas pencariannya agar pasti ketemu di folder mana pun
+          if-no-files-found: error # Jika kali ini tetap tidak ketemu, paksa sistem untuk memunculkan pesan eror yang jelas
