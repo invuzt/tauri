@@ -44,18 +44,37 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-node-
 
-      # Inisialisasi otomatis
+      # Inisialisasi otomatis + PEMANGKASAN FITUR RUST
       - name: Initialize Tauri Project Silently
         run: |
           npm init -y
           sed -i 's/"test": "echo \\"Error: no test specified\\" \&\& exit 1"/"tauri": "tauri"/g' package.json
           npm install @tauri-apps/cli@latest @tauri-apps/api@latest
+          
+          # 1. Jalankan inisialisasi dasar
           npx tauri init --app-name "Aplikasi Arsip" --window-title "Arsip Internal" --frontend-dist "../src" --dev-url "http://localhost:1420" --before-dev-command "" --before-build-command ""
           
-          # Mengubah bundle identifier agar unik
-          sed -i 's/"com.tauri.dev"/"com.internal.arsipku"/g' src-tauri/tauri.conf.json
-          
-          # Optimasi Ukuran APK Semut
+          # 2. TRIK PANGKAS FITUR: Mengubah konfigurasi tauri.conf.json agar menonaktifkan fitur yang tidak dipakai
+          # Kita gunakan node script sederhana untuk memanipulasi file JSON dengan aman
+          node -e '
+            const fs = require("fs");
+            const config = JSON.parse(fs.readFileSync("src-tauri/tauri.conf.json", "utf8"));
+            
+            // Set bundle identifier yang unik
+            config.identifier = "com.internal.arsipku";
+            
+            // Memangkas ke fitur paling minimal (hanya menyisakan kemampuan dasar WebView & IPC invoke)
+            config.app = {
+              withGlobalTauri: true,
+              security: {
+                capabilities: ["core:default"]
+              }
+            };
+            
+            fs.writeFileSync("src-tauri/tauri.conf.json", JSON.stringify(config, null, 2));
+          '
+
+          # 3. Optimasi Ukuran APK Semut di sisi Cargo
           echo -e "\n[profile.release]\nlto = true\ncodegen-units = 1\nstrip = true\npanic = 'abort'" >> src-tauri/Cargo.toml
 
       # Menginisialisasi komponen Android native
@@ -66,17 +85,17 @@ jobs:
       - name: Build APK
         run: npx tauri android build
 
-      # LANGKAH DETEKTIF: Intip semua file .apk yang berhasil terbuat di dalam server
+      # LANGKAH DETEKTIF: Intip lokasi file APK
       - name: Locate APK File
         run: |
           echo "=== Menampilkan lokasi file APK yang terbuat ==="
           find . -name "*.apk"
           echo "==============================================="
 
-      # Mengunggah file APK dengan jalur pencarian global (Mulai dari folder root src-tauri)
+      # Mengunggah file APK dengan jalur pencarian global
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: tauri-android-apk
-          path: src-tauri/**/*.apk # Diperluas pencariannya agar pasti ketemu di folder mana pun
-          if-no-files-found: error # Jika kali ini tetap tidak ketemu, paksa sistem untuk memunculkan pesan eror yang jelas
+          path: src-tauri/**/*.apk
+          if-no-files-found: error
