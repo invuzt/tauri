@@ -2,9 +2,68 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Aplikasi Arsip Internal</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+            text-align: center;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        input {
+            padding: 10px;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        #output {
+            margin-top: 20px;
+            font-weight: bold;
+            color: green;
+        }
+    </style>
 </head>
 <body>
-    <h1>Selamat Datang di Aplikasi Arsip</h1>
+
+    <h1>Aplikasi Arsip</h1>
+    
+    <input type="text" id="nama-arsip" placeholder="Ketik nama dokumen...">
+    <button id="btn-kirim">Kirim ke Rust</button>
+
+    <div id="output"></div>
+
+    <script>
+        // 1. Ambil fungsi 'invoke' dari sistem jembatan Tauri
+        const { invoke } = window.__TAURI__.core;
+
+        const button = document.getElementById('btn-kirim');
+        const input = document.getElementById('nama-arsip');
+        const outputDiv = document.getElementById('output');
+
+        // 2. Logika ketika tombol diklik
+        button.addEventListener('click', async () => {
+            const teksInput = input.value;
+
+            try {
+                // 3. KIRIM DATA KE RUST lewat perintah 'invoke'
+                // Kita memanggil fungsi 'greet' bawaan Tauri dan mengirim variabel 'name'
+                const balasanDariRust = await invoke('greet', { name: teksInput });
+                
+                // 4. Tampilkan balasan dari Rust ke layar HP
+                outputDiv.innerText = balasanDariRust;
+            } catch (error) {
+                outputDiv.innerText = "Error: " + error;
+            }
+        });
+    </script>
+
 </body>
 </html>
