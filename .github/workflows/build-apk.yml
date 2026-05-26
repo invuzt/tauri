@@ -1,0 +1,56 @@
+name: Build Android APK
+on:
+  push:
+    branches:
+      - main # Jalankan otomatis setiap kamu push ke branch 'main'
+  workflow_dispatch: # Memungkinkan kamu menjalankan build manual dari web GitHub
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java (Untuk Android SDK)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: armv7-linux-androideabi,aarch64-linux-android,i686-linux-android,x86_64-linux-android
+
+      - name: Install pnpm (Atau sesuaikan jika pakai npm/yarn)
+        uses: pnpm/action-setup@v3
+        with:
+          version: latest
+
+      - name: Install frontend dependencies
+        run: pnpm install
+
+      # Menjalankan build tauri khusus untuk Android
+      - name: Build APK via Tauri Action
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          args: --target android
+
+      # Mengamankan file APK yang berhasil di-build agar bisa di-download
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tauri-android-apk
+          path: src-tauri/gen/android/app/build/outputs/apk/release/*.apk
