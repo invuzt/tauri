@@ -2,8 +2,8 @@ name: Auto Create and Build Tauri APK
 on:
   push:
     branches:
-      - main # Akan berjalan otomatis setiap kamu commit/save di branch main
-  workflow_dispatch: # Memungkinkan kamu klik tombol "Run workflow" manual dari HP
+      - main
+  workflow_dispatch:
 
 jobs:
   build-android:
@@ -32,12 +32,12 @@ jobs:
         with:
           targets: armv7-linux-androideabi,aarch64-linux-android,i686-linux-android,x86_64-linux-android
 
-      # Langkah otomatis untuk membuat package.json dan konfigurasi Tauri secara silent
+      # Langkah yang sudah diperbaiki: --dist-dir diganti menjadi --frontend-dist
       - name: Initialize Tauri Project Silently
         run: |
           npm init -y
           npm install @tauri-apps/cli@latest @tauri-apps/api@latest
-          npx tauri init --app-name "Aplikasi Arsip" --window-title "Arsip Internal" --dist-dir "../src" --dev-url "http://localhost:1420" --before-dev-command "" --before-build-command ""
+          npx tauri init --app-name "Aplikasi Arsip" --window-title "Arsip Internal" --frontend-dist "../src" --dev-url "http://localhost:1420" --before-dev-command "" --before-build-command ""
 
       # Menginisialisasi komponen Android native di server GitHub
       - name: Initialize Android Platform
