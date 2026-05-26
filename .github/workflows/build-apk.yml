@@ -32,12 +32,15 @@ jobs:
         with:
           targets: armv7-linux-androideabi,aarch64-linux-android,i686-linux-android,x86_64-linux-android
 
-      # Langkah yang sudah diperbaiki: --dist-dir diganti menjadi --frontend-dist
+      # Langkah Inisialisasi + Trik Mengubah Bundle Identifier secara otomatis
       - name: Initialize Tauri Project Silently
         run: |
           npm init -y
           npm install @tauri-apps/cli@latest @tauri-apps/api@latest
           npx tauri init --app-name "Aplikasi Arsip" --window-title "Arsip Internal" --frontend-dist "../src" --dev-url "http://localhost:1420" --before-dev-command "" --before-build-command ""
+          
+          # TRIK SAKTI: Mengubah "com.tauri.dev" menjadi "com.internal.arsipku" di file konfigurasi tauri
+          sed -i 's/"com.tauri.dev"/"com.internal.arsipku"/g' src-tauri/tauri.conf.json
 
       # Menginisialisasi komponen Android native di server GitHub
       - name: Initialize Android Platform
