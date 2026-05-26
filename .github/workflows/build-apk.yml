@@ -32,21 +32,25 @@ jobs:
         with:
           targets: armv7-linux-androideabi,aarch64-linux-android,i686-linux-android,x86_64-linux-android
 
-      # Langkah Inisialisasi + Trik Mengubah Bundle Identifier secara otomatis
+      # Langkah Inisialisasi + Memperbaiki Script package.json yang dicari Gradle
       - name: Initialize Tauri Project Silently
         run: |
           npm init -y
+          
+          # SOLUSI: Suntik perintah "tauri" ke dalam file package.json agar Gradle tidak error
+          sed -i 's/"test": "echo \\"Error: no test specified\\" \&\& exit 1"/"tauri": "tauri"/g' package.json
+          
           npm install @tauri-apps/cli@latest @tauri-apps/api@latest
           npx tauri init --app-name "Aplikasi Arsip" --window-title "Arsip Internal" --frontend-dist "../src" --dev-url "http://localhost:1420" --before-dev-command "" --before-build-command ""
           
-          # TRIK SAKTI: Mengubah "com.tauri.dev" menjadi "com.internal.arsipku" di file konfigurasi tauri
+          # Mengubah bundle identifier agar unik
           sed -i 's/"com.tauri.dev"/"com.internal.arsipku"/g' src-tauri/tauri.conf.json
 
       # Menginisialisasi komponen Android native di server GitHub
       - name: Initialize Android Platform
         run: npx tauri android init
 
-      # Proses kompilasi kode HTML/CSS/JS menjadi file APK
+      # Proses kompilasi kode HTML/CSS/JS menjadi file APK Unsigned
       - name: Build APK
         run: npx tauri android build
 
