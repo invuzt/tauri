@@ -1,9 +1,13 @@
-name: Auto Create and Build Tauri APK (Super Fast & Tiny)
+Name: Auto Create and Build Tauri APK (Super Fast & Tiny)
 on:
   push:
     branches:
       - main
   workflow_dispatch:
+
+# Konfigurasi Optimasi RAM Global untuk Cargo
+env:
+  CARGO_BUILD_JOBS: 1 # Membatasi paralelisme kompilasi untuk mencegah kehabisan RAM (OOM)
 
 jobs:
   build-android:
@@ -27,12 +31,18 @@ jobs:
         with:
           node-version: 'lts/*'
 
+      # Jika Anda berniat memindahkan target dir (Khusus lokal/Proot), pasang env di sini.
+      # Tapi untuk GitHub Actions, baris di bawah ini sengaja dinonaktifkan agar cache Rust tidak rusak.
+      # env:
+      #   CARGO_TARGET_DIR: /tmp/cargo-target
+
+       Taruh Rust Toolchain sebelum Cache agar sinkron
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-linux-android
 
-      # Fitur Cache
+      # Fitur Cache (Akan bekerja maksimal jika CARGO_TARGET_DIR berada di posisi default)
       - name: Cache Rust Dependencies
         uses: swatinem/rust-cache@v2
 
@@ -55,15 +65,12 @@ jobs:
           npx tauri init --app-name "Aplikasi Arsip" --window-title "Arsip Internal" --frontend-dist "../src" --dev-url "http://localhost:1420" --before-dev-command "" --before-build-command ""
           
           # 2. TRIK PANGKAS FITUR: Mengubah konfigurasi tauri.conf.json agar menonaktifkan fitur yang tidak dipakai
-          # Kita gunakan node script sederhana untuk memanipulasi file JSON dengan aman
           node -e '
             const fs = require("fs");
             const config = JSON.parse(fs.readFileSync("src-tauri/tauri.conf.json", "utf8"));
             
-            // Set bundle identifier yang unik
             config.identifier = "com.internal.arsipku";
             
-            // Memangkas ke fitur paling minimal (hanya menyisakan kemampuan dasar WebView & IPC invoke)
             config.app = {
               withGlobalTauri: true,
               security: {
@@ -81,7 +88,7 @@ jobs:
       - name: Initialize Android Platform
         run: npx tauri android init
 
-      # Proses kompilasi menjadi APK
+      # Proses kompilasi menjadi APK (Akan mematuhi CARGO_BUILD_JOBS=1)
       - name: Build APK
         run: npx tauri android build
 
